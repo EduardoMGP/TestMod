@@ -3,11 +3,10 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        sh 'Running build #${env.BUILD_ID} on ${env.JENKINS_URL}'
-        sh 'checkout scm'
+        echo "Running build #${env.BUILD_ID} on ${env.JENKINS_URL}"
+        checkout scm
       }
     }
-
     stage('Build') {
       steps {
         sh 'rm -rf build/libs/'
@@ -16,9 +15,30 @@ pipeline {
         sh './gradlew build uploadArchives --no-daemon'
       }
     }
-
-  }
-  environment {
-    MAVEN_URL = '/var/www/mvn.romvoid.dev/public'
-  }
-}
+    stage('Archive') {
+      when {
+        allOf {
+          expression {
+            currentBuild.result == null || currentBuild.result == 'SUCCESS'
+          }
+        }
+      }
+      steps {
+        archiveArtifacts 'build/libs/*'
+      }
+    }
+    stage('Deploy To Maven') {
+          when {
+            allOf {
+              branch 'development'
+              expression {
+                currentBuild.result == null || currentBuild.result == 'SUCCESS'
+              }
+            }
+          }
+          steps {
+            echo "Should Upload Now"
+          }
+        }
+      }
+    }
